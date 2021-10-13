@@ -24,7 +24,7 @@ UNIT_CASE_SIZE = 30
 MAP_LENGTH = WINDOW_LENGHT // UNIT_CASE_SIZE
 MAP_HEIGHT = WINDOW_HEIGHT // UNIT_CASE_SIZE
 
-MAP_BACKGROUND = (255, 255, 255)
+MAP_BACKGROUND = pygame.Color('white')
 
 gameMap = np.full((MAP_HEIGHT, MAP_LENGTH), unitCaseOwner.NOBODY)
 
@@ -70,15 +70,24 @@ screen.fill(MAP_BACKGROUND)
 pygame.display.set_caption("Soloperma")
 
 IS_GAMELOOP_STOPPED = False
+fpsLimiter = pygame.time.Clock()
+
+LEFT = 1
 
 while not IS_GAMELOOP_STOPPED:
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 IS_GAMELOOP_STOPPED = True
-        if event.type == pygame.QUIT:
+        elif event.type == pygame.QUIT:
             IS_GAMELOOP_STOPPED = True
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == LEFT:
+                posMouse = event.pos
+                gameMap[posMouse[0] // 30, posMouse[1] // 30] = unitCaseOwner.PLAYER
+
     
     screen.fill(MAP_BACKGROUND)
     drawMap()
     pygame.display.flip()
+    fpsLimiter.tick(10)
