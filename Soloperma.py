@@ -1,3 +1,4 @@
+from typing import Tuple
 import pygame
 import numpy as np
 from enum import IntEnum
@@ -56,6 +57,45 @@ def unitCaseColor(unitCase):
         return pygame.Color('cyan')
     return pygame.Color('white')
 
+# Convert pixel position in pixelPos to grid position
+def pixelPosToGridPos(pixelPos):
+    return (pixelPos[0] // UNIT_CASE_SIZE, pixelPos[1] // UNIT_CASE_SIZE)
+
+# Return if the unit case at casePos is owned by a territory
+def isCaseOwnable(casePos):
+    return True if gameMap[casePos[0], casePos[1]] == unitCaseOwner.NOBODY else False
+
+# Return a tuple of adjacent unit case owner to the unit case as casePos position
+# The returned tuple is formated in this form : (left case, up case, right case, down case)
+# If a adjacent unit case is out of map it return unitCaseOwner.OUTSIDE
+def adjacentCase(casePos):
+    adjacentCaseTuple = []
+    if casePos[1] == 0:
+        adjacentCaseTuple.append(unitCaseOwner.OUTSIDE)
+    else:
+        adjacentCaseTuple.append(gameMap[casePos[0], casePos[1] - 1])
+    if casePos[0] == 0:
+        adjacentCaseTuple.append(unitCaseOwner.OUTSIDE)
+    else:
+        adjacentCaseTuple.append(gameMap[casePos[0] - 1, casePos[1]])
+    if casePos[1] == MAP_LENGTH - 1:
+        adjacentCaseTuple.append(unitCaseOwner.OUTSIDE)
+    else:
+        adjacentCaseTuple.append(gameMap[casePos[0], casePos[1] + 1])
+    if casePos[0] == MAP_HEIGHT - 1:
+        adjacentCaseTuple.append(unitCaseOwner.OUTSIDE)
+    else:
+        adjacentCaseTuple.append(gameMap[casePos[0] + 1, casePos[1]])
+    return tuple(adjacentCaseTuple)
+
+
+# Return if one bordering unit case of the unit case at casePos position is owned by owner
+def isBorderingCase(casePos, owner):
+    for unitCase in adjacentCase(casePos):
+        if unitCase == owner:
+            return True
+    return False
+
 def drawMap():
     for row in range(MAP_HEIGHT):
         for column in range(MAP_LENGTH):
@@ -83,8 +123,9 @@ while not IS_GAMELOOP_STOPPED:
             IS_GAMELOOP_STOPPED = True
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == LEFT:
-                posMouse = event.pos
-                gameMap[posMouse[0] // 30, posMouse[1] // 30] = unitCaseOwner.PLAYER
+                posCase = pixelPosToGridPos(event.pos)
+                if isCaseOwnable(posCase) and isBorderingCase(posCase, unitCaseOwner.PLAYER):
+                    gameMap[posCase[0], posCase[1]] = unitCaseOwner.PLAYER
 
     
     screen.fill(MAP_BACKGROUND)
