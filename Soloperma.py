@@ -2,7 +2,6 @@ import pygame
 import numpy as np
 from enum import IntEnum
 from copy import copy
-from pygame import display
 
 from pygame.color import Color
 
@@ -26,6 +25,7 @@ class Territory:
         self._owningPerTurn = self._owningPerTurnMax
         self._ownedUnitCase = []
         self._isAnnexed = False
+        self._playersInConflict = []
     
     def ownCase(self, casePos):
         self._ownedUnitCase.append(casePos)
@@ -35,6 +35,7 @@ class Territory:
         self._ownedUnitCase.remove(casePos)
         if not self._ownedUnitCase:
             self._isAnnexed = True
+            self._playersInConflict = []
 
     def ownedCase(self):
         return tuple(self._ownedUnitCase)
@@ -48,21 +49,41 @@ class Territory:
     def resetOwningPerTurn(self):
         self._owningPerTurn = self._owningPerTurnMax
 
-    def AnnexTerritory(self):
+    def cantDoAnything(self):
+        self._owningPerTurn -= 1
+
+    def annexTerritory(self):
         self._owningPerTurnMax +=1
 
     def isAnnexed(self):
         return self._isAnnexed
+
+    def playersInConflict(self):
+        return copy(self._playersInConflict)
+
+    def isInConflict(self):
+        return True if self._playersInConflict else False
+
+    def addPlayerToConflict(self, player):
+        if player in self._playersInConflict or player == self:
+            return
+        self._playersInConflict.append(player)
+        player.addPlayerToConflict(self)
+    
+    def playerAnnexed(self, player):
+        self._playersInConflict.remove(player)
+        self.annexTerritory()
 
     _owner = UnitCaseOwner.NOBODY
     _ownedUnitCase = []
     _owningPerTurn = 0
     _owningPerTurnMax = 0
     _isAnnexed = False
+    _playersInConflict = []
     
 
-WINDOW_HEIGHT = 1080
-WINDOW_LENGHT = 1080
+WINDOW_HEIGHT = 570
+WINDOW_LENGHT = 570
 
 UNIT_CASE_SIZE = 30
 
@@ -82,25 +103,41 @@ player5 = Territory(UnitCaseOwner.PLAYER5)
 player6 = Territory(UnitCaseOwner.PLAYER6)
 player7 = Territory(UnitCaseOwner.PLAYER7)
 
-gameMap[5:10, 10] = player0.ownerIs()
-gameMap[0, 0:5] = player1.ownerIs()
-gameMap[35, 35] = player2.ownerIs()
-gameMap[15, 5] = player3.ownerIs()
-gameMap[35, 10] = player4.ownerIs()
-gameMap[22, 22] = player5.ownerIs()
-gameMap[5, 35] = player6.ownerIs()
-gameMap[17, 17] = player7.ownerIs()
+def unitCaseOwnerToPlayer(unitCaseOwner: UnitCaseOwner):
+    if unitCaseOwner == UnitCaseOwner.PLAYER0:
+        return player0
+    if unitCaseOwner == UnitCaseOwner.PLAYER1:
+        return player1
+    if unitCaseOwner == UnitCaseOwner.PLAYER2:
+        return player2
+    if unitCaseOwner == UnitCaseOwner.PLAYER3:
+        return player3
+    if unitCaseOwner == UnitCaseOwner.PLAYER4:
+        return player4
+    if unitCaseOwner == UnitCaseOwner.PLAYER5:
+        return player5
+    if unitCaseOwner == UnitCaseOwner.PLAYER6:
+        return player6
+    else :
+        return player7
 
-for k in range(6):
-    player0.ownCase((5 + k, 10))
-    player1.ownCase((0, k))
+gameMap[6, 2] = player0.ownerIs()
+gameMap[15, 0] = player1.ownerIs()
+gameMap[17, 10] = player2.ownerIs()
+gameMap[18, 7] = player3.ownerIs()
+gameMap[11, 16] = player4.ownerIs()
+gameMap[13, 18] = player5.ownerIs()
+gameMap[2, 13] = player6.ownerIs()
+gameMap[0, 16] = player7.ownerIs()
 
-player2.ownCase((35, 35))
-player3.ownCase((15, 5))
-player4.ownCase((35, 10))
-player5.ownCase((22, 22))
-player6.ownCase((5, 35))
-player7.ownCase((17, 17))
+player0.ownCase((6, 2))
+player1.ownCase((15, 0))
+player2.ownCase((17, 10))
+player3.ownCase((18, 7))
+player4.ownCase((11, 16))
+player5.ownCase((13, 18))
+player6.ownCase((2, 13))
+player7.ownCase((0, 16))
 
 player0.resetOwningPerTurn()
 player1.resetOwningPerTurn()
@@ -169,20 +206,32 @@ def isBorderingCase(casePos, owner):
             return True
     return False
 
-def basicAnnexingAi(player: Territory, annexedOwner: UnitCaseOwner):
+def basicAnnexingAi(player: Territory, annexedOwner: list[UnitCaseOwner]):
     isItBreak = True
     while player.howManyPerTurn() > 0 and isItBreak:
         isItBreak = False
+        if player.isInConflict() and UnitCaseOwner.NOBODY in annexedOwner:
+            break
         for unitCase in player.ownedCase():
             if isItBreak:
                 break
             neighborsCase = adjacentCase(unitCase)
             i = 0
             for neighborCase in neighborsCase:
-                if neighborCase == annexedOwner:
+                if neighborCase in annexedOwner and len(player.ownedCase()) >= len(unitCaseOwnerToPlayer(neighborCase).ownedCase()):
                     casePos = (unitCase[0], unitCase[1] - 1) if i == 0 else (unitCase[0] - 1 , unitCase[1]) if i == 1 else (unitCase[0], unitCase[1] + 1) if i == 2 else (unitCase[0] + 1, unitCase[1])
                     gameMap[casePos] = player.ownerIs()
                     player.ownCase(casePos)
+                    if neighborCase != UnitCaseOwner.NOBODY:
+                        playerConflict = unitCaseOwnerToPlayer(neighborCase)
+                        playerConflict.loseCase(casePos)
+                        if playerConflict.isAnnexed():
+                            player.playerAnnexed(playerConflict)
+                            if playerConflict != player0:
+                                turnStack.remove(playerConflict) 
+                    for unitCaseAd in adjacentCase(casePos):
+                        if unitCaseAd != UnitCaseOwner.NOBODY and unitCaseAd != UnitCaseOwner.OUTSIDE:
+                            player.addPlayerToConflict(unitCaseOwnerToPlayer(unitCaseAd))
                     isItBreak = True
                     break
                 i += 1
@@ -196,14 +245,17 @@ def drawMap():
 
 pygame.init()
 
-screen = pygame.display.set_mode((WINDOW_LENGHT, WINDOW_HEIGHT))
+screen = pygame.display.set_mode((WINDOW_LENGHT, WINDOW_HEIGHT), 0)
 screen.fill(MAP_BACKGROUND)
 pygame.display.set_caption("Soloperma")
+icon = pygame.image.load("Soloperma.bmp")
+pygame.display.set_icon(icon)
 
 IS_GAMELOOP_STOPPED = False
 fpsLimiter = pygame.time.Clock()
 
 turnStack = [player1, player2, player3, player4, player5, player6, player7]
+player0IsBeingAnnexed = False
 
 font = pygame.font.Font(None, 32)
 textWin = font.render('You have win!', True, Color('black'), Color('white'))
@@ -214,6 +266,17 @@ textRect.center = (WINDOW_LENGHT // 2, WINDOW_HEIGHT // 2)
 LEFT = 1
 
 while not IS_GAMELOOP_STOPPED:
+
+    if not turnStack or player0.isAnnexed():
+        screen.fill(Color('white'))
+        screen.blit(textLost, textRect) if player0.isAnnexed() else screen.blit(textWin, textRect)
+        pygame.display.flip()
+        pygame.time.wait(3000)
+        IS_GAMELOOP_STOPPED = True
+    
+    if player0IsBeingAnnexed:
+        player0.cantDoAnything()
+
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -221,25 +284,46 @@ while not IS_GAMELOOP_STOPPED:
         elif event.type == pygame.QUIT:
             IS_GAMELOOP_STOPPED = True
         elif event.type == pygame.MOUSEBUTTONDOWN:
+            if not turnStack:
+                continue
+            if player0IsBeingAnnexed:
+                continue
             if event.button == LEFT:
                 posCase = pixelPosToGridPos(event.pos)
-                if isCaseOwnable(posCase) and isBorderingCase(posCase, player0.ownerIs()) and player0.howManyPerTurn() > 0:
-                    gameMap[posCase[0], posCase[1]] = player0.ownerIs()
-                    player0.ownCase(posCase)
+                if player0.howManyPerTurn() > 0 and isBorderingCase(posCase, player0.ownerIs()):
+                    if player0.isInConflict():
+                        for player in player0.playersInConflict():
+                            if player.ownerIs() == gameMap[posCase]:
+                                if len(player0.ownedCase()) > len(player.ownedCase()):    
+                                    gameMap[posCase] = player0.ownerIs()
+                                    player0.ownCase(posCase)
+                                    player.loseCase(posCase)
+                                    for unitCase in adjacentCase(posCase):
+                                        if unitCase != UnitCaseOwner.NOBODY and unitCase != UnitCaseOwner.OUTSIDE:
+                                            player0.addPlayerToConflict(unitCaseOwnerToPlayer(unitCase))
+                                    if player.isAnnexed():
+                                        player0.playerAnnexed(player)
+                                        turnStack.remove(player)
+                                else:
+                                    player0IsBeingAnnexed = True
+                                break
+                    elif isCaseOwnable(posCase):
+                        gameMap[posCase] = player0.ownerIs()
+                        player0.ownCase(posCase)
+                        for unitCase in adjacentCase(posCase):
+                            if unitCase != UnitCaseOwner.NOBODY and unitCase != UnitCaseOwner.OUTSIDE:
+                                player0.addPlayerToConflict(unitCaseOwnerToPlayer(unitCase))
+
 
     if player0.howManyPerTurn() <= 0:
-        for player in turnStack:
+        for player in turnStack[:]:
             player.resetOwningPerTurn()
-            basicAnnexingAi(player, UnitCaseOwner.NOBODY)
+            if player.isInConflict():
+                playersConflictOwner = [playerConflict.ownerIs() for playerConflict in player.playersInConflict()]
+                basicAnnexingAi(player, playersConflictOwner)
+            else :
+                basicAnnexingAi(player, [UnitCaseOwner.NOBODY])
         player0.resetOwningPerTurn()
-    
-    if not turnStack or player1.isAnnexed():
-        screen.fill(Color('white'))
-        screen.blit(textLost, textRect) if player1.isAnnexed() else screen.blit(textWin, textRect)
-        pygame.display.flip()
-        pygame.time.wait(3000)
-        IS_GAMELOOP_STOPPED = True
-
 
     screen.fill(MAP_BACKGROUND)
     drawMap()
