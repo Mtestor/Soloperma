@@ -16,5 +16,5 @@
 
 ## Credits:
 Made by Mtestor.
-Version : 1.0.1
+Version : 1.0.2
 Made with pygame.

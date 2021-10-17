@@ -1,5 +1,5 @@
 import pygame
-import numpy as np
+from numpy import full
 from enum import IntEnum
 from copy import copy
 
@@ -92,7 +92,7 @@ MAP_HEIGHT = WINDOW_HEIGHT // UNIT_CASE_SIZE
 
 MAP_BACKGROUND = pygame.Color('white')
 
-gameMap = np.full((MAP_HEIGHT, MAP_LENGTH), UnitCaseOwner.NOBODY)
+gameMap = full((MAP_HEIGHT, MAP_LENGTH), UnitCaseOwner.NOBODY)
 
 player0 = Territory(UnitCaseOwner.PLAYER0)
 player1 = Territory(UnitCaseOwner.PLAYER1)
@@ -124,19 +124,19 @@ def unitCaseOwnerToPlayer(unitCaseOwner: UnitCaseOwner):
 gameMap[6, 2] = player0.ownerIs()
 gameMap[15, 0] = player1.ownerIs()
 gameMap[17, 10] = player2.ownerIs()
-gameMap[18, 7] = player3.ownerIs()
+gameMap[18, 6] = player3.ownerIs()
 gameMap[11, 16] = player4.ownerIs()
 gameMap[13, 18] = player5.ownerIs()
-gameMap[2, 13] = player6.ownerIs()
+gameMap[2, 12] = player6.ownerIs()
 gameMap[0, 16] = player7.ownerIs()
 
 player0.ownCase((6, 2))
 player1.ownCase((15, 0))
 player2.ownCase((17, 10))
-player3.ownCase((18, 7))
+player3.ownCase((18, 6))
 player4.ownCase((11, 16))
 player5.ownCase((13, 18))
-player6.ownCase((2, 13))
+player6.ownCase((2, 12))
 player7.ownCase((0, 16))
 
 player0.resetOwningPerTurn()
@@ -206,7 +206,7 @@ def isBorderingCase(casePos, owner):
             return True
     return False
 
-def basicAnnexingAi(player: Territory, annexedOwner: list[UnitCaseOwner]):
+def basicAnnexingAi(player: Territory, annexedOwner):
     isItBreak = True
     while player.howManyPerTurn() > 0 and isItBreak:
         isItBreak = False
@@ -294,7 +294,7 @@ while not IS_GAMELOOP_STOPPED:
                     if player0.isInConflict():
                         for player in player0.playersInConflict():
                             if player.ownerIs() == gameMap[posCase]:
-                                if len(player0.ownedCase()) > len(player.ownedCase()):    
+                                if len(player0.ownedCase()) >= len(player.ownedCase()):    
                                     gameMap[posCase] = player0.ownerIs()
                                     player0.ownCase(posCase)
                                     player.loseCase(posCase)
